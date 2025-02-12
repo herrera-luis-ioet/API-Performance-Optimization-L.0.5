@@ -1,4 +1,9 @@
-"""Test cases for middleware components."""
+"""Test cases for middleware components.
+
+Test Cases:
+    RATE-001: Verify rate limiting behavior under various load conditions
+    CACHE-001: Verify cache hit/miss scenarios and proper invalidation
+"""
 import pytest
 import time
 from fastapi.testclient import TestClient
@@ -180,3 +185,131 @@ def test_cache_different_http_methods(db_session, sample_product):
     post_response1 = client.post("/products/", json=sample_product)
     post_response2 = client.post("/products/", json=sample_product)
     assert post_response1.json()["id"] != post_response2.json()["id"]
+
+def test_rate_limiter_burst_traffic(rate_limiter):
+    """RATE-001: Test rate limiter behavior under burst traffic."""
+    client_id = "burst_client"
+    bucket = rate_limiter.get_bucket(client_id)
+    
+    # Simulate burst traffic by consuming all tokens quickly
+    initial_tokens = bucket.tokens
+    tokens_consumed = 0
+    
+    while bucket.tokens >= 1:
+        bucket.tokens -= 1
+        tokens_consumed += 1
+    
+    assert tokens_consumed == initial_tokens
+    assert bucket.tokens < 1
+    
+    # Verify token refill after a short wait
+    time.sleep(0.5)
+    rate_limiter.refill_bucket(bucket)
+    assert bucket.tokens > 0
+
+def test_rate_limiter_distributed_traffic(rate_limiter):
+    """RATE-001: Test rate limiter behavior under distributed traffic."""
+    client_id = "distributed_client"
+    bucket = rate_limiter.get_bucket(client_id)
+    
+    # Simulate distributed traffic pattern
+    for _ in range(3):
+        assert bucket.tokens >= 1
+        bucket.tokens -= 1
+        time.sleep(0.2)  # Small delay between requests
+        rate_limiter.refill_bucket(bucket)
+    
+    assert bucket.tokens > 0
+
+def test_cache_partial_invalidation(cache_middleware, db_session):
+    """CACHE-001: Test partial cache invalidation."""
+    from fastapi import Request
+    
+    # Create mock requests for different resources
+    request1 = Request(scope={
+        "type": "http",
+        "method": "GET",
+        "path": "/products/1",
+        "query_string": b""
+    })
+    
+    request2 = Request(scope={
+        "type": "http",
+        "method": "GET",
+        "path": "/products/2",
+        "query_string": b""
+    })
+    
+    # Generate different cache keys
+    key1 = cache_middleware.generate_cache_key(request1)
+    key2 = cache_middleware.generate_cache_key(request2)
+    
+    # Store test data in cache
+    cache_middleware.redis_client.setex(key1, 60, '{"data": "product1"}')
+    cache_middleware.redis_client.setex(key2, 60, '{"data": "product2"}')
+    
+    # Verify both keys exist
+    assert cache_middleware.redis_client.exists(key1)
+    assert cache_middleware.redis_client.exists(key2)
+    
+    # Delete one key
+    cache_middleware.redis_client.delete(key1)
+    
+    # Verify partial invalidation
+    assert not cache_middleware.redis_client.exists(key1)
+    assert cache_middleware.redis_client.exists(key2)
+
+def test_cache_concurrent_access(cache_middleware):
+    """CACHE-001: Test cache behavior under concurrent access."""
+    import asyncio
+    
+    async def concurrent_cache_access():
+        # Simulate concurrent cache operations
+        tasks = []
+        for i in range(5):
+            key = f"concurrent_key_{i}"
+            tasks.append(
+                asyncio.create_task(
+                    cache_middleware.cache_response(
+                        key,
+                        Response(content=f"data_{i}"),
+                        expiry=10
+                    )
+                )
+            )
+        await asyncio.gather(*tasks)
+        
+        # Verify all keys were stored
+        for i in range(5):
+            key = f"concurrent_key_{i}"
+            assert cache_middleware.redis_client.exists(key)
+    
+    asyncio.run(concurrent_cache_access())
+
+def test_rate_limiter_cleanup(rate_limiter):
+    """RATE-001: Test rate limiter bucket cleanup."""
+    # Create test buckets
+    test_clients = ["client1", "client2", "client3"]
+    for client_id in test_clients:
+        bucket = rate_limiter.get_bucket(client_id)
+        bucket.last_refill = time.time() - 3700  # Set last refill to more than 1 hour ago
+    
+    # Run cleanup
+    asyncio.run(rate_limiter.cleanup_buckets())
+    
+    # Verify buckets were cleaned up
+    for client_id in test_clients:
+        assert client_id not in rate_limiter.buckets
+
+def test_cache_large_payload(cache_middleware):
+    """CACHE-001: Test cache behavior with large payloads."""
+    large_data = "x" * 1024 * 1024  # 1MB of data
+    key = "large_payload"
+    
+    # Cache large payload
+    cache_middleware.redis_client.setex(key, 60, large_data)
+    
+    # Verify data integrity
+    cached_data = cache_middleware.redis_client.get(key)
+    assert cached_data == large_data
+    assert len(cached_data) == len(large_data)
