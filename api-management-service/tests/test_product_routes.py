@@ -38,13 +38,93 @@ def test_create_product(db_session, sample_product):
 
 def test_create_product_invalid_data(db_session):
     """Test product creation with invalid data."""
-    invalid_product = {
-        "name": "",  # Invalid: empty name
-        "price": -10,  # Invalid: negative price
-        "stock": -5  # Invalid: negative stock
-    }
-    response = client.post("/products/", json=invalid_product)
-    assert response.status_code == 422
+    # Test case PROD-002: Test product creation with invalid data
+    test_cases = [
+        {
+            "data": {
+                "name": "",  # Invalid: empty name
+                "price": 10.99,
+                "stock": 100
+            },
+            "expected_error": "name"
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": -10,  # Invalid: negative price
+                "stock": 100
+            },
+            "expected_error": "price"
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": -5  # Invalid: negative stock
+            },
+            "expected_error": "stock"
+        },
+        {
+            "data": {
+                "name": "T" * 256,  # Invalid: name too long
+                "price": 10.99,
+                "stock": 100
+            },
+            "expected_error": "name"
+        },
+        {
+            "data": {
+                "description": "T" * 1001,  # Invalid: description too long
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100
+            },
+            "expected_error": "description"
+        }
+    ]
+
+    for test_case in test_cases:
+        response = client.post("/products/", json=test_case["data"])
+        assert response.status_code == 422, f"Expected 422 for invalid {test_case['expected_error']}"
+        error_detail = response.json()["detail"]
+        assert any(test_case["expected_error"] in error["loc"] for error in error_detail), \
+            f"Expected validation error for {test_case['expected_error']}"
+
+def test_create_product_valid_data(db_session):
+    """Test product creation with valid data."""
+    # Test case PROD-001: Test product creation with valid data
+    test_cases = [
+        {
+            "name": "Basic Product",
+            "price": 10.99,
+            "stock": 100
+        },
+        {
+            "name": "Product with Description",
+            "description": "Test description",
+            "price": 99.99,
+            "stock": 50
+        },
+        {
+            "name": "Product with Max Values",
+            "description": "T" * 1000,  # Max length
+            "price": 9999.99,
+            "stock": 999999
+        }
+    ]
+
+    for test_data in test_cases:
+        response = client.post("/products/", json=test_data)
+        assert response.status_code == 201, f"Failed to create product with data: {test_data}"
+        data = response.json()
+        assert data["name"] == test_data["name"]
+        assert data["price"] == test_data["price"]
+        assert data["stock"] == test_data["stock"]
+        if "description" in test_data:
+            assert data["description"] == test_data["description"]
+        assert "id" in data
+        assert "created_at" in data
+        assert "updated_at" in data
 
 def test_get_product(db_session, sample_product):
     """Test getting a product by ID."""
