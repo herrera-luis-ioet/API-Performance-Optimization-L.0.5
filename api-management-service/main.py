@@ -7,6 +7,7 @@ from typing import Dict, Any
 from middleware.rate_limiter import RateLimitMiddleware
 from middleware.cache import RedisCacheMiddleware
 from middleware.logging_middleware import StructuredLoggingMiddleware
+from monitoring import setup_monitoring, setup_monitoring_routes
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -16,6 +17,9 @@ app = FastAPI(
 )
 
 # Configure middleware
+# Set up monitoring
+setup_monitoring(app)
+
 # Add structured logging middleware first to capture all requests
 app.add_middleware(StructuredLoggingMiddleware)
 
@@ -96,6 +100,9 @@ async def startup_event() -> None:
     """
     # Load configuration
     app.state.config = load_config()
+    
+    # Set up monitoring routes
+    setup_monitoring_routes(app)
 
 # Shutdown event handler
 @app.on_event("shutdown")
