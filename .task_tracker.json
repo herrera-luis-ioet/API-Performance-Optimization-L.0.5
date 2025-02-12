@@ -15,7 +15,7 @@
         },
         "Task1SubTask2": {
           "description": "Set up configuration management",
-          "status": "to-do",
+          "status": "in-progress",
           "micro_agent": "CodeWritingAgent",
           "details": "Create config.py for managing different environment configurations (development, testing, production). Include database, Redis, and API configurations."
         },
