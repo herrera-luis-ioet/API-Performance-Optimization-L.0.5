@@ -6,6 +6,7 @@ import os
 from typing import Dict, Any
 from middleware.rate_limiter import RateLimitMiddleware
 from middleware.cache import RedisCacheMiddleware
+from middleware.logging_middleware import StructuredLoggingMiddleware
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -15,6 +16,9 @@ app = FastAPI(
 )
 
 # Configure middleware
+# Add structured logging middleware first to capture all requests
+app.add_middleware(StructuredLoggingMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, replace with specific origins
