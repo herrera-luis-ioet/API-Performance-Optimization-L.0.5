@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import os
 from typing import Dict, Any
+from middleware.rate_limiter import RateLimitMiddleware
+from middleware.cache import RedisCacheMiddleware
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -12,13 +14,27 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Configure CORS middleware
+# Configure middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Configure rate limiting middleware
+app.add_middleware(
+    RateLimitMiddleware,
+    rate_limit=int(os.getenv("RATE_LIMIT", "10")),
+    bucket_capacity=int(os.getenv("BUCKET_CAPACITY", "10"))
+)
+
+# Configure Redis caching middleware
+redis_cache = RedisCacheMiddleware(
+    redis_host=os.getenv("REDIS_HOST", "localhost"),
+    redis_port=int(os.getenv("REDIS_PORT", "6379")),
+    default_expiry=int(os.getenv("CACHE_EXPIRY", "300"))
 )
 
 # Custom exception handler for generic exceptions
