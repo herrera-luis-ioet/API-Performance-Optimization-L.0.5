@@ -193,4 +193,135 @@ def test_order_status_transitions(db_session, sample_order):
         # Update to next status
         response = client.put(f"/orders/{order_id}", json={"status": next_status})
         assert response.status_code == 200
-        assert response.json()["status"] == next_status
+        assert response.json()["status"] == next_status"""Unit tests for order routes."""
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+from main import app
+from database.models import Order
+from database.connection import get_db
+
+# Test client setup
+client = TestClient(app)
+
+# Database session fixture
+@pytest.fixture
+def db_session():
+    """Get database session for testing."""
+    db = next(get_db())
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Test data fixtures
+@pytest.fixture
+def sample_order_data():
+    """Sample order data for testing."""
+    return {
+        "customer_id": "test_customer",
+        "total_amount": 100.0,
+        "status": "pending"
+    }
+
+@pytest.fixture
+def create_test_orders(db_session):
+    """Create multiple test orders with different statuses."""
+    orders = [
+        Order(customer_id="customer1", total_amount=100.0, status="pending"),
+        Order(customer_id="customer2", total_amount=200.0, status="processing"),
+        Order(customer_id="customer3", total_amount=300.0, status="completed"),
+        Order(customer_id="customer4", total_amount=400.0, status="cancelled")
+    ]
+    for order in orders:
+        db_session.add(order)
+    db_session.commit()
+    
+    yield orders
+    
+    # Cleanup
+    for order in orders:
+        db_session.delete(order)
+    db_session.commit()
+
+# Test case ORD-001: Test order creation and status transitions
+def test_order_status_transitions(db_session, sample_order_data):
+    """Test order creation and status transitions."""
+    # Create order with pending status
+    response = client.post("/orders/", json=sample_order_data)
+    assert response.status_code == 201
+    order_id = response.json()["id"]
+    assert response.json()["status"] == "pending"
+    
+    # Update order status to processing
+    response = client.put(f"/orders/{order_id}", json={"status": "processing"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "processing"
+    
+    # Update order status to completed
+    response = client.put(f"/orders/{order_id}", json={"status": "completed"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+    
+    # Cleanup
+    db_session.query(Order).filter(Order.id == order_id).delete()
+    db_session.commit()
+
+def test_invalid_status_transition(db_session, sample_order_data):
+    """Test invalid order status transition."""
+    # Create order
+    response = client.post("/orders/", json=sample_order_data)
+    order_id = response.json()["id"]
+    
+    # Try to update with invalid status
+    response = client.put(f"/orders/{order_id}", json={"status": "invalid_status"})
+    assert response.status_code == 422  # Validation error
+    
+    # Cleanup
+    db_session.query(Order).filter(Order.id == order_id).delete()
+    db_session.commit()
+
+# Test case ORD-002: Test order listing with status filtering
+def test_order_listing_with_status_filter(db_session, create_test_orders):
+    """Test order listing with status filtering."""
+    # Test filtering by pending status
+    response = client.get("/orders/?status=pending")
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 1
+    assert orders[0]["status"] == "pending"
+    
+    # Test filtering by processing status
+    response = client.get("/orders/?status=processing")
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 1
+    assert orders[0]["status"] == "processing"
+    
+    # Test filtering by completed status
+    response = client.get("/orders/?status=completed")
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 1
+    assert orders[0]["status"] == "completed"
+
+def test_order_listing_pagination(db_session, create_test_orders):
+    """Test order listing pagination."""
+    # Test with limit
+    response = client.get("/orders/?limit=2")
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 2
+    
+    # Test with skip
+    response = client.get("/orders/?skip=2&limit=2")
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 2
+    assert orders[0]["customer_id"] != create_test_orders[0].customer_id
+
+def test_invalid_status_filter(db_session):
+    """Test invalid status filter."""
+    response = client.get("/orders/?status=invalid_status")
+    assert response.status_code == 400
+    assert "Invalid status value" in response.json()["detail"]
