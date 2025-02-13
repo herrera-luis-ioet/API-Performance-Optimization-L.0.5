@@ -160,7 +160,33 @@
           "details": "Create deployment guide including environment setup, configuration, and maintenance procedures."
         }
       }
+    },
+    "Task6": {
+      "description": "Fix Environment Variable Loading Issue",
+      "task_description": "Resolve the environment variable loading issue in connection.py by properly integrating with config.py's Settings class",
+      "status": "to-do",
+      "details": "The environment variables from .env file are not being loaded in connection.py due to direct use of os.getenv() instead of using the Pydantic BaseSettings configuration from config.py. This needs to be fixed to ensure proper configuration management.",
+      "subtasks": {
+        "Task6SubTask1": {
+          "description": "Analyze current environment variable loading implementation",
+          "status": "to-do",
+          "micro_agent": "CodeAnalysisAgent",
+          "details": "Review connection.py and config.py to understand the current implementation and identify specific issues with environment variable loading"
+        },
+        "Task6SubTask2": {
+          "description": "Update connection.py to use Settings from config.py",
+          "status": "to-do",
+          "micro_agent": "CodeWritingAgent",
+          "details": "Modify connection.py to import and use the Settings instance from config.py instead of direct os.getenv() calls. This includes:\n1. Import settings from config.py\n2. Replace direct os.getenv() calls with settings values\n3. Use settings.get_database_url() for DATABASE_URL\n4. Use settings.DB_POOL_SIZE and settings.DB_POOL_TIMEOUT for engine configuration"
+        },
+        "Task6SubTask3": {
+          "description": "Test environment variable loading",
+          "status": "to-do",
+          "micro_agent": "TestCodeWritingAgent",
+          "details": "Create and execute tests to verify that environment variables are properly loaded from .env file into the connection module"
+        }
+      }
     }
   },
-  "next_task_id": 6
+  "next_task_id": 7
 }
