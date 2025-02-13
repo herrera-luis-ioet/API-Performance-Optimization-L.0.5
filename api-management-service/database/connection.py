@@ -2,26 +2,16 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-import os
+from ..config import settings
 
-# Get database configuration from environment variables
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "api_management")
-
-# Create database URL
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# Create engine with connection pool
+# Create engine with connection pool using settings
 engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,
+    settings.get_database_url(),
+    pool_size=settings.DB_POOL_SIZE,
     max_overflow=10,
-    pool_timeout=30,
+    pool_timeout=settings.DB_POOL_TIMEOUT,
     pool_recycle=1800,
-    echo=False
+    echo=settings.DEBUG
 )
 
 # Create session factory
@@ -33,8 +23,12 @@ db_session = scoped_session(SessionLocal)
 # Create base class for models
 Base = declarative_base()
 
+# PUBLIC_INTERFACE
 def get_db():
     """Get database session.
+    
+    This function provides a database session that automatically closes when done.
+    It should be used as a dependency in FastAPI endpoints.
     
     Returns:
         Session: Database session
