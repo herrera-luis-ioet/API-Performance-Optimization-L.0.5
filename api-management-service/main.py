@@ -8,6 +8,7 @@ from middleware.rate_limiter import RateLimitMiddleware
 from middleware.cache import RedisCacheMiddleware
 from middleware.logging_middleware import StructuredLoggingMiddleware
 from monitoring import setup_monitoring, setup_monitoring_routes
+from routers import products, orders
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -91,6 +92,9 @@ def load_config() -> Dict[str, Any]:
         "debug": os.getenv("DEBUG", "False").lower() == "true",
         "port": int(os.getenv("PORT", "8000")),
     }
+
+app.include_router(products.router)
+app.include_router(orders.router)
 
 # Startup event handler
 @app.on_event("startup")

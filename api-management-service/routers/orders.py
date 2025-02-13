@@ -6,11 +6,9 @@ from pydantic import BaseModel, Field
 from database.connection import get_db
 from database.models import Order
 from middleware.cache import RedisCacheMiddleware
-from middleware.rate_limiter import RateLimitMiddleware
 
 # Initialize middleware
 cache = RedisCacheMiddleware()
-rate_limiter = RateLimitMiddleware(rate_limit=100, bucket_capacity=100)
 
 # Initialize router
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -215,9 +213,3 @@ async def delete_order(
             status_code=400,
             detail=f"Failed to delete order: {str(e)}"
         )
-
-# Middleware application
-@router.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    """Apply rate limiting to all order routes."""
-    return await rate_limiter(request, call_next)
