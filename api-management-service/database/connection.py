@@ -2,7 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-from ..config import settings
+from config import settings
 
 # Create engine with connection pool using settings
 engine = create_engine(
@@ -13,7 +13,7 @@ engine = create_engine(
     pool_recycle=1800,
     echo=settings.DEBUG
 )
-
+print(settings.get_database_url())
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

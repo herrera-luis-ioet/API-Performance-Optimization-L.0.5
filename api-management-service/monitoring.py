@@ -5,7 +5,7 @@ from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTEN
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 import logging
-from database.connection import get_db_session
+from database.connection import db_session
 
 # Initialize logger
 logger = logging.getLogger("api_management")
