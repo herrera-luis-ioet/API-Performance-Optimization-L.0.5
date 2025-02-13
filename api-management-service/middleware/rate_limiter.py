@@ -1,3 +1,4 @@
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, HTTPException
 from typing import Dict, Optional
 import time
@@ -12,7 +13,7 @@ class TokenBucket:
     tokens: float
     last_refill: float
 
-class RateLimitMiddleware:
+class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware using token bucket algorithm.
     
@@ -22,7 +23,7 @@ class RateLimitMiddleware:
         buckets: Dictionary storing token buckets for each client
     """
     
-    def __init__(self, rate_limit: int = 10, bucket_capacity: int = 10):
+    def __init__(self, app, rate_limit: int = 10, bucket_capacity: int = 10):
         """
         Initialize rate limiter middleware.
         
@@ -30,6 +31,7 @@ class RateLimitMiddleware:
             rate_limit: Number of requests allowed per second
             bucket_capacity: Maximum number of tokens in the bucket
         """
+        super().__init__(app)
         self.rate_limit = rate_limit
         self.bucket_capacity = bucket_capacity
         self.buckets: Dict[str, TokenBucket] = {}
@@ -91,7 +93,7 @@ class RateLimitMiddleware:
         bucket.tokens = min(bucket.capacity, bucket.tokens + new_tokens)
         bucket.last_refill = now
 
-    async def __call__(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         """
         Process the request through rate limiting.
         
