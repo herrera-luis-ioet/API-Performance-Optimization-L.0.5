@@ -1,17 +1,25 @@
 """Product API routes module."""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 from database.connection import get_db
 from database.models import Product
 from middleware.cache import RedisCacheMiddleware
+from fastapi.responses import JSONResponse
+from datetime import datetime
+import json
 
 # Initialize middleware
 cache = RedisCacheMiddleware()
 
 # Initialize router
 router = APIRouter(prefix="/products", tags=["products"])
+
+def serialize_datetime(obj: Any) -> Any:
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 # Request/Response Models
 class ProductBase(BaseModel):
@@ -55,11 +63,18 @@ async def create_product(
         HTTPException: When product creation fails
     """
     try:
-        db_product = Product(**product.dict())
-        db.add(db_product)
+        product = Product(**product.dict())
+        db.add(product)
         db.commit()
-        db.refresh(db_product)
-        return db_product
+        db.refresh(product)
+        return  ProductResponse(
+            id=product.id,
+            name=product.name,
+            description=product.description,
+            price=product.price,
+            stock=product.stock,
+            created_at=product.created_at.isoformat(), 
+            updated_at=product.updated_at.isoformat())
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -89,12 +104,16 @@ async def get_product(
         HTTPException: When product is not found
     """
     product = db.query(Product).filter(Product.id == product_id).first()
+
+    response = json.dumps(product.to_dict(), default=serialize_datetime)
+    content = json.loads(response)
+
     if not product:
         raise HTTPException(
             status_code=404,
             detail=f"Product with ID {product_id} not found"
         )
-    return product
+    return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
 @router.get("/", response_model=List[ProductResponse])
@@ -117,7 +136,11 @@ async def list_products(
         List of products
     """
     products = db.query(Product).offset(skip).limit(limit).all()
-    return products
+    product_dicts = [ product.to_dict() for product in products]
+    response = json.dumps(product_dicts, default=serialize_datetime)
+    content = json.loads(response)
+
+    return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
 @router.put("/{product_id}", response_model=ProductResponse)
@@ -153,7 +176,14 @@ async def update_product(
             setattr(db_product, key, value)
         db.commit()
         db.refresh(db_product)
-        return db_product
+        return ProductResponse(
+            id=db_product.id,
+            name=db_product.name,
+            description=db_product.description,
+            price=db_product.price,
+            stock=db_product.stock,
+            created_at=db_product.created_at.isoformat(), 
+            updated_at=db_product.updated_at.isoformat())
     except Exception as e:
         db.rollback()
         raise HTTPException(

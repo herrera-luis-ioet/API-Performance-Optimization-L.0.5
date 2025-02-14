@@ -1,17 +1,25 @@
 """Order API routes module."""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 from database.connection import get_db
 from database.models import Order
 from middleware.cache import RedisCacheMiddleware
+from fastapi.responses import JSONResponse
+from datetime import datetime
+import json
 
 # Initialize middleware
 cache = RedisCacheMiddleware()
 
 # Initialize router
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+def serialize_datetime(obj: Any) -> Any:
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 # Request/Response Models
 class OrderBase(BaseModel):
@@ -68,7 +76,13 @@ async def create_order(
         db.add(db_order)
         db.commit()
         db.refresh(db_order)
-        return db_order
+        return  OrderResponse(
+            id=db_order.id,
+            customer_id=db_order.customer_id,
+            total_amount=db_order.total_amount,
+            status=db_order.status,            
+            created_at=db_order.created_at.isoformat(), 
+            updated_at=db_order.updated_at.isoformat())
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -98,12 +112,14 @@ async def get_order(
         HTTPException: When order is not found
     """
     order = db.query(Order).filter(Order.id == order_id).first()
+    response = json.dumps(order.to_dict(), default=serialize_datetime)
+    content = json.loads(response)
     if not order:
         raise HTTPException(
             status_code=404,
             detail=f"Order with ID {order_id} not found"
         )
-    return order
+    return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
 @router.get("/", response_model=List[OrderResponse])
@@ -137,7 +153,11 @@ async def list_orders(
         query = query.filter(Order.status == status)
     
     orders = query.offset(skip).limit(limit).all()
-    return orders
+    orders_dicts = [order.to_dict() for order in orders]
+    response = json.dumps(orders_dicts, default=serialize_datetime)
+    content = json.loads(response)
+
+    return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
 @router.put("/{order_id}", response_model=OrderResponse)
@@ -172,7 +192,13 @@ async def update_order(
         db_order.status = order_update.status
         db.commit()
         db.refresh(db_order)
-        return db_order
+        return OrderResponse(
+            id=db_order.id,
+            customer_id=db_order.customer_id,
+            total_amount=db_order.total_amount,
+            status=db_order.status,            
+            created_at=db_order.created_at.isoformat(), 
+            updated_at=db_order.updated_at.isoformat())
     except Exception as e:
         db.rollback()
         raise HTTPException(
