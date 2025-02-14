@@ -105,14 +105,15 @@ async def get_product(
     """
     product = db.query(Product).filter(Product.id == product_id).first()
 
-    response = json.dumps(product.to_dict(), default=serialize_datetime)
-    content = json.loads(response)
-
     if not product:
         raise HTTPException(
             status_code=404,
             detail=f"Product with ID {product_id} not found"
         )
+
+    response = json.dumps(product.to_dict(), default=serialize_datetime)
+    content = json.loads(response)
+    
     return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE

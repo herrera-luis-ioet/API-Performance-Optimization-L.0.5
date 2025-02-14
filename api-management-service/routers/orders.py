@@ -112,13 +112,16 @@ async def get_order(
         HTTPException: When order is not found
     """
     order = db.query(Order).filter(Order.id == order_id).first()
-    response = json.dumps(order.to_dict(), default=serialize_datetime)
-    content = json.loads(response)
+   
     if not order:
         raise HTTPException(
             status_code=404,
             detail=f"Order with ID {order_id} not found"
         )
+    
+    response = json.dumps(order.to_dict(), default=serialize_datetime)
+    content = json.loads(response)
+    
     return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
