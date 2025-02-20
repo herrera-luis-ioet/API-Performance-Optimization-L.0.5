@@ -12,17 +12,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python
+    - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        python-version: 3.9
 
     - name: Install dependencies
       run: |
@@ -37,19 +30,20 @@ jobs:
 
     - name: Create deployment package
       run: |
-        mkdir -p deployment
-        cp -r api-management-service/* deployment/
-        cd deployment
-        pip install --target ./package -r requirements.txt
-        cd package
-        zip -r ../deployment.zip .
-        cd ..
-        zip -g deployment.zip *py
+        mkdir -p deployment_package
+        cp -r api-management-service/* deployment_package/
+        pip install --target ./deployment_package -r requirements.txt
+        cd deployment_package && zip -r ../deployment.zip .
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Deploy to Lambda
       run: |
-        aws lambda update-function-code --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} --zip-file fileb://deployment/deployment.zip
-        aws lambda update-function-configuration --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} --handler lambda_handler.handler
-
-    - name: Clean up
-      run: rm -rf deployment
+        aws lambda update-function-code \
+          --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+          --zip-file fileb://deployment.zip
