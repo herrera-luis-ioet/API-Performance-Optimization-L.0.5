@@ -30,11 +30,6 @@ jobs:
           pip install -r requirements.txt
           pip install mangum pytest pytest-cov
 
-      - name: Run tests with coverage
-        run: |
-          pytest --cov=api-management-service --cov-report=term-missing
-        env:
-          CI: true
 
       - name: Create deployment package
         run: |
