@@ -65,8 +65,9 @@ jobs:
             --zip-file fileb://lambda_deployment_package.zip
     
           # Update function configuration with new tag
-          aws lambda wait function-updated \ 
+           aws lambda wait function-updated \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }}
+
           aws lambda update-function-configuration \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
             --description "Version: $TAG_NAME" \
