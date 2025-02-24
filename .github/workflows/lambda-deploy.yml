@@ -69,8 +69,8 @@ jobs:
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }}
           aws lambda update-function-configuration \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --description "Version: $TAG_NAME"
-            --environment "Variables={DB_USER=${{ secrets.DB_USER }}, DB_PASSWORD=${{ secrets.DB_PASSWORD }}, DB_HOST=${{ secrets.DB_HOST }}, DB_NAME=${{ secrets.DB_NAME }}, DB_PORT=${{ secrets.DB_PORT }}", REDIS_HOST=${{ secrets.REDIS_HOST }} }
+            --description "Version: $TAG_NAME" \
+            --environment "Variables={DB_USER=${{ secrets.DB_USER }}, DB_PASSWORD=${{ secrets.DB_PASSWORD }}, DB_HOST=${{ secrets.DB_HOST }}, DB_NAME=${{ secrets.DB_NAME }}, DB_PORT=${{ secrets.DB_PORT }}, REDIS_HOST=${{ secrets.REDIS_HOST }}}"
 
           # Wait for update to complete
           aws lambda wait function-updated \
