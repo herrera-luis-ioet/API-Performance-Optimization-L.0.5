@@ -10,7 +10,7 @@ from logging.handlers import RotatingFileHandler
 import os
 
 # Configure logging
-log_dir = "logs"
+log_dir = "/tmp/logs"
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 

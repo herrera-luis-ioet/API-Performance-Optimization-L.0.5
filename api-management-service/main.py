@@ -20,10 +20,10 @@ app = FastAPI(
 
 # Configure middleware
 # Set up monitoring
-# setup_monitoring(app)
+setup_monitoring(app)
 
 # Add structured logging middleware first to capture all requests
-# app.add_middleware(StructuredLoggingMiddleware)
+app.add_middleware(StructuredLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
