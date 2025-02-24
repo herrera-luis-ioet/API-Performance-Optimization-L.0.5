@@ -9,6 +9,7 @@ from middleware.cache import RedisCacheMiddleware
 from middleware.logging_middleware import StructuredLoggingMiddleware
 from monitoring import setup_monitoring, setup_monitoring_routes
 from routers import products, orders
+from mangum import Mangum
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -124,3 +125,5 @@ if __name__ == "__main__":
         port=config["port"],
         reload=config["debug"]
     )
+
+handler = Mangum(app, lifespan="off")

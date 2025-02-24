@@ -11,3 +11,4 @@ httpx>=0.23.0,<0.24.0
 alembic>=1.7.0,<1.8.0
 python-json-logger>=2.0.0,<2.1.0
 tenacity>=8.0.0,<8.1.0
+mangum==0.19.0
