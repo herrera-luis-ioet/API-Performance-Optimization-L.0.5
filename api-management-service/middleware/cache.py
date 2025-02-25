@@ -17,7 +17,7 @@ class RedisCacheMiddleware:
     
     def __init__(
         self,
-        redis_host: settings.REDIS_HOST,
+        redis_host: str = settings.REDIS_HOST,
         redis_port: int = 6379,
         default_expiry: int = 300
     ):
