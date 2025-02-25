@@ -16,7 +16,8 @@ app = FastAPI(
     title="API Management Service",
     description="Service for managing and optimizing API performance",
     version="0.1.0",
-    docs_url="/docs"
+    docs_url="/docs",
+    openapi_url="/openapi.json"
 )
 
 # Configure middleware
