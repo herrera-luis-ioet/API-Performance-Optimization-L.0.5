@@ -52,7 +52,7 @@ class OrderUpdate(BaseModel):
     )
 
 # PUBLIC_INTERFACE
-@router.post("/", response_model=OrderResponse, status_code=201)
+@router.post("", response_model=OrderResponse, status_code=201)
 async def create_order(
     request: Request,
     order: OrderCreate,
@@ -125,7 +125,7 @@ async def get_order(
     return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
-@router.get("/", response_model=List[OrderResponse])
+@router.get("", response_model=List[OrderResponse])
 @cache.cache_response_handler(expiry=300)  # Cache for 5 minutes
 async def list_orders(
     request: Request,

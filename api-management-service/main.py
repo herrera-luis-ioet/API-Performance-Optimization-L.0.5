@@ -15,7 +15,8 @@ from mangum import Mangum
 app = FastAPI(
     title="API Management Service",
     description="Service for managing and optimizing API performance",
-    version="0.1.0"
+    version="0.1.0",
+    docs_url="/docs"
 )
 
 # Configure middleware

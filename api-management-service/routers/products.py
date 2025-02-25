@@ -43,7 +43,7 @@ class ProductResponse(ProductBase):
     updated_at: str
 
 # PUBLIC_INTERFACE
-@router.post("/", response_model=ProductResponse, status_code=201)
+@router.post("", response_model=ProductResponse, status_code=201)
 async def create_product(
     request: Request,
     product: ProductCreate,
@@ -117,7 +117,7 @@ async def get_product(
     return JSONResponse(content=content)
 
 # PUBLIC_INTERFACE
-@router.get("/", response_model=List[ProductResponse])
+@router.get("", response_model=List[ProductResponse])
 @cache.cache_response_handler(expiry=300)  # Cache for 5 minutes
 async def list_products(
     request: Request,
