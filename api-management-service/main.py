@@ -10,7 +10,6 @@ from middleware.logging_middleware import StructuredLoggingMiddleware
 from monitoring import setup_monitoring, setup_monitoring_routes
 from routers import products, orders
 from mangum import Mangum
-from config import settings
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -39,13 +38,6 @@ app.add_middleware(
     RateLimitMiddleware,
     rate_limit=int(os.getenv("RATE_LIMIT", "10")),
     bucket_capacity=int(os.getenv("BUCKET_CAPACITY", "10"))
-)
-
-# Configure Redis caching middleware
-redis_cache = RedisCacheMiddleware(
-    redis_host=settings.REDIS_HOST,
-    redis_port=int(os.getenv("REDIS_PORT", "6379")),
-    default_expiry=int(os.getenv("CACHE_EXPIRY", "300"))
 )
 
 # Custom exception handler for generic exceptions

@@ -4,6 +4,7 @@ import redis
 import json
 import hashlib
 from functools import wraps
+from config import settings
 
 class RedisCacheMiddleware:
     """
@@ -16,7 +17,7 @@ class RedisCacheMiddleware:
     
     def __init__(
         self,
-        redis_host: str = "localhost",
+        redis_host: settings.REDIS_HOST,
         redis_port: int = 6379,
         default_expiry: int = 300
     ):
