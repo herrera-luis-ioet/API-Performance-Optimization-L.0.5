@@ -28,6 +28,7 @@ class ProductBase(BaseModel):
     description: Optional[str] = Field(None, max_length=1000)
     price: float = Field(..., gt=0)
     stock: int = Field(..., ge=0)
+    image: Optional[str] = Field(None, max_length=255)
 
     class Config:
         orm_mode = True
@@ -73,6 +74,7 @@ async def create_product(
             description=product.description,
             price=product.price,
             stock=product.stock,
+            image=product.image,
             created_at=product.created_at.isoformat(), 
             updated_at=product.updated_at.isoformat())
     except Exception as e:
@@ -183,6 +185,7 @@ async def update_product(
             description=db_product.description,
             price=db_product.price,
             stock=db_product.stock,
+            image=db_product.image,
             created_at=db_product.created_at.isoformat(), 
             updated_at=db_product.updated_at.isoformat())
     except Exception as e:

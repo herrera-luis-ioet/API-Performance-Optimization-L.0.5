@@ -24,6 +24,7 @@ class Product(BaseModel):
     description = Column(String(1000))
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False, default=0)
+    image = Column(String(255), nullable=True)
 
 class Order(BaseModel):
     """Order model."""
