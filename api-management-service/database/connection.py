@@ -13,7 +13,6 @@ engine = create_engine(
     pool_recycle=1800,
     echo=settings.DEBUG
 )
-print(settings.get_database_url())
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
