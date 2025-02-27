@@ -24,7 +24,19 @@ def sample_product():
         "name": "Test Product",
         "description": "Test Description",
         "price": 99.99,
-        "stock": 100
+        "stock": 100,
+        "image": None  # Default to None to test optional nature
+    }
+
+@pytest.fixture
+def sample_product_with_image():
+    """Create a sample product with image for testing."""
+    return {
+        "name": "Test Product with Image",
+        "description": "Test Description",
+        "price": 99.99,
+        "stock": 100,
+        "image": "https://example.com/test-image.jpg"
     }
 
 def test_create_product(db_session, sample_product):
@@ -40,6 +52,33 @@ def test_create_product_invalid_data(db_session):
     """Test product creation with invalid data."""
     # Test case PROD-002: Test product creation with invalid data
     test_cases = [
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "not_a_valid_url"  # Invalid: not a valid URL format
+            },
+            "expected_error": "image"
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "ftp://invalid-protocol.com/image.jpg"  # Invalid: unsupported protocol
+            },
+            "expected_error": "image"
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "a" * 256  # Invalid: image URL too long
+            },
+            "expected_error": "image"
+        },
         {
             "data": {
                 "name": "",  # Invalid: empty name
@@ -94,6 +133,13 @@ def test_create_product_valid_data(db_session):
     """Test product creation with valid data."""
     # Test case PROD-001: Test product creation with valid data
     test_cases = [
+        {
+            "name": "Product with Image",
+            "description": "Product with a valid image URL",
+            "price": 199.99,
+            "stock": 75,
+            "image": "https://example.com/images/product.jpg"
+        },
         {
             "name": "Basic Product",
             "price": 10.99,
@@ -164,6 +210,59 @@ def test_list_products(db_session, sample_product):
     data = response.json()
     assert len(data) <= 2
 
+def test_create_product_with_image(db_session, sample_product_with_image):
+    """Test product creation with image field."""
+    response = client.post("/products/", json=sample_product_with_image)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == sample_product_with_image["name"]
+    assert data["image"] == sample_product_with_image["image"]
+    assert "id" in data
+
+def test_create_product_without_image(db_session, sample_product):
+    """Test product creation without image field (optional field)."""
+    # Ensure image is None in sample_product
+    sample_product["image"] = None
+    response = client.post("/products/", json=sample_product)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == sample_product["name"]
+    assert data["image"] is None
+    assert "id" in data
+
+def test_update_product_image(db_session, sample_product, sample_product_with_image):
+    """Test updating product image field."""
+    # Create a product first without image
+    create_response = client.post("/products/", json=sample_product)
+    product_id = create_response.json()["id"]
+    
+    # Update the product to add an image
+    updated_data = sample_product_with_image.copy()
+    response = client.put(f"/products/{product_id}", json=updated_data)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image"] == updated_data["image"]
+    
+    # Update the product to remove the image
+    updated_data["image"] = None
+    response = client.put(f"/products/{product_id}", json=updated_data)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image"] is None
+    
+    # Update with a different image URL
+    updated_data["image"] = "https://example.com/new-image.jpg"
+    response = client.put(f"/products/{product_id}", json=updated_data)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image"] == updated_data["image"]
+    
+    # Verify image persistence after update
+    get_response = client.get(f"/products/{product_id}")
+    assert get_response.status_code == 200
+    get_data = get_response.json()
+    assert get_data["image"] == updated_data["image"]
+
 def test_update_product(db_session, sample_product):
     """Test updating a product."""
     # Create a product first
@@ -216,6 +315,172 @@ def test_rate_limiting(db_session, sample_product):
     # The 101st request should be rate limited
     response = client.get("/products/")
     assert response.status_code == 429
+
+def test_image_field_validation(db_session):
+    """Test image field validation with various scenarios."""
+    test_cases = [
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "https://example.com/valid-image.jpg"  # Valid HTTPS URL
+            },
+            "expected_status": 201
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "http://example.com/image.jpg"  # Valid HTTP URL
+            },
+            "expected_status": 201
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": ""  # Empty string
+            },
+            "expected_status": 422
+        },
+        {
+            "data": {
+                "name": "Test Product",
+                "price": 10.99,
+                "stock": 100,
+                "image": "   "  # Whitespace only
+            },
+            "expected_status": 422
+        }
+    ]
+
+    for test_case in test_cases:
+        response = client.post("/products/", json=test_case["data"])
+        assert response.status_code == test_case["expected_status"], \
+            f"Expected status {test_case['expected_status']} for image: {test_case['data']['image']}"
+        
+        if test_case["expected_status"] == 201:
+            data = response.json()
+            assert data["image"] == test_case["data"]["image"]
+
+def test_image_field_in_list_products(db_session, sample_product, sample_product_with_image):
+    """Test image field presence in product listing."""
+    # Create products with and without images
+    client.post("/products/", json=sample_product)
+    client.post("/products/", json=sample_product_with_image)
+    
+    # Test listing products
+    response = client.get("/products/")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify both products are listed with correct image fields
+    products_with_image = [p for p in data if p["image"] is not None]
+    products_without_image = [p for p in data if p["image"] is None]
+    
+    assert len(products_with_image) > 0, "No products with image found"
+    assert len(products_without_image) > 0, "No products without image found"
+    
+    # Verify image URLs are preserved in listing
+    product_with_image = next(p for p in data if p["image"] is not None)
+    assert product_with_image["image"] == sample_product_with_image["image"]
+
+def test_bulk_image_updates(db_session):
+    """Test bulk updates of product images."""
+    # Create multiple products with different image scenarios
+    products = [
+        {
+            "name": "Product 1",
+            "description": "Test Description 1",
+            "price": 99.99,
+            "stock": 100,
+            "image": "https://example.com/image1.jpg"
+        },
+        {
+            "name": "Product 2",
+            "description": "Test Description 2",
+            "price": 149.99,
+            "stock": 150,
+            "image": None
+        },
+        {
+            "name": "Product 3",
+            "description": "Test Description 3",
+            "price": 199.99,
+            "stock": 200,
+            "image": "https://example.com/image3.jpg"
+        }
+    ]
+    
+    created_products = []
+    for product in products:
+        response = client.post("/products/", json=product)
+        assert response.status_code == 201
+        created_products.append(response.json())
+    
+    # Update images for all products
+    for product in created_products:
+        new_image = "https://example.com/updated-image.jpg"
+        update_data = {
+            "name": product["name"],
+            "description": product["description"],
+            "price": product["price"],
+            "stock": product["stock"],
+            "image": new_image
+        }
+        
+        response = client.put(f"/products/{product['id']}", json=update_data)
+        assert response.status_code == 200
+        updated_data = response.json()
+        assert updated_data["image"] == new_image
+        
+        # Verify through GET request
+        get_response = client.get(f"/products/{product['id']}")
+        assert get_response.status_code == 200
+        get_data = get_response.json()
+        assert get_data["image"] == new_image
+
+def test_image_field_special_characters(db_session):
+    """Test image field with URLs containing special characters."""
+    test_cases = [
+        {
+            "name": "Product with URL Encoded Image",
+            "description": "Test Description",
+            "price": 99.99,
+            "stock": 100,
+            "image": "https://example.com/image%20with%20spaces.jpg"
+        },
+        {
+            "name": "Product with Query Parameters",
+            "description": "Test Description",
+            "price": 99.99,
+            "stock": 100,
+            "image": "https://example.com/image.jpg?size=large&format=webp"
+        },
+        {
+            "name": "Product with Hash Fragment",
+            "description": "Test Description",
+            "price": 99.99,
+            "stock": 100,
+            "image": "https://example.com/image.jpg#fragment"
+        }
+    ]
+    
+    for test_case in test_cases:
+        # Create product
+        response = client.post("/products/", json=test_case)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["image"] == test_case["image"]
+        
+        # Verify retrieval
+        get_response = client.get(f"/products/{data['id']}")
+        assert get_response.status_code == 200
+        get_data = get_response.json()
+        assert get_data["image"] == test_case["image"]
 
 def test_cache_behavior(db_session, sample_product):
     """Test caching behavior."""
